@@ -189,7 +189,7 @@ And because these pods live in their own namespace with a `NetworkPolicy` lockin
 
 ---
 
-## Access control & billing — the parts that don't show up in a demo video
+## Access control & billing — the parts that don't show up in a demo
 
 **Project access isn't just "logged in or not."** Every project has real per-user roles, and every sensitive endpoint checks a real permission, not just a session. I built a `SecurityExpressions` bean that backs Spring Security's `@PreAuthorize` — so a controller method looks like `@PreAuthorize("@security.canEditProject(#id)")`, and under that call, it looks up the caller's actual role on that specific project and checks it against a `ProjectPermission` enum (`VIEW`, `EDIT`, `DELETE`, `MANAGE_MEMBERS`). So "can this person delete this project" and "can this person edit this project" are genuinely different checks, backed by a real membership table — not one blanket "isOwner" flag.
 
