@@ -7,12 +7,15 @@
 Built the way Lovable / bolt.new work — but built by me, from the LLM orchestration down to the Kubernetes pod that runs your generated app.
 
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](.)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-brightgreen?logo=springboot)](.)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3-brightgreen?logo=springboot)](.)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-LLM%20Orchestration-blue)](.)
 [![Kafka](https://img.shields.io/badge/Apache%20Kafka-Choreography%20Saga-black?logo=apachekafka)](.)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-GKE-326CE5?logo=kubernetes)](.)
 [![React](https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react)](.)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](.)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+📺 **Demo video coming soon** — a full walkthrough is on the way, link will be added here once it's live.
 
 </div>
 
@@ -186,12 +189,20 @@ And because these pods live in their own namespace with a `NetworkPolicy` lockin
 
 ---
 
-## Repository structure
+## Access control & billing — the parts that don't show up in a demo video
+
+**Project access isn't just "logged in or not."** Every project has real per-user roles, and every sensitive endpoint checks a real permission, not just a session. I built a `SecurityExpressions` bean that backs Spring Security's `@PreAuthorize` — so a controller method looks like `@PreAuthorize("@security.canEditProject(#id)")`, and under that call, it looks up the caller's actual role on that specific project and checks it against a `ProjectPermission` enum (`VIEW`, `EDIT`, `DELETE`, `MANAGE_MEMBERS`). So "can this person delete this project" and "can this person edit this project" are genuinely different checks, backed by a real membership table — not one blanket "isOwner" flag.
+
+**Billing is driven by Stripe webhooks, not by trusting the client.** `BillingController` exposes checkout-session creation and a customer-portal link, but the part that actually matters is `/webhooks/payment` — it verifies the Stripe signature on every incoming event (`Webhook.constructEvent`) before touching anything, and subscription state only ever changes in response to a verified event Stripe sent me, never because the frontend said "I just paid." That's the only way this doesn't have a giant "just call the checkout-success endpoint yourself" hole in it.
+
+**AI usage is metered per plan, per day, and actually enforced.** `UsageService` logs how many tokens each user burns per day, and before letting a generation request through, it checks that count against the user's plan (`maxTokensPerDay`, with an `unlimitedAi()` escape hatch for higher tiers) — and throws a `429 Too Many Requests` once they're over. It's a small thing, but it's the difference between "billing exists" and "billing actually caps what a free-tier user can cost me."
+
+---
 
 ```
 distributed-lovable/
 │
-├── Lovable Frontend/project-companion/   # React + TypeScript SPA
+├── frontend/                             # React + TypeScript SPA
 │   └── src/
 │       ├── components/                   # UI components (incl. shadcn/ui primitives)
 │       ├── hooks/                        # Custom React hooks
@@ -243,6 +254,8 @@ distributed-lovable/
 
 ## Running it locally
 
+> You'll need Java 21, Node 18+, Maven, and Docker on your machine, plus Kafka, PostgreSQL, Redis, and MinIO running locally (see `k8s/stateful/` for reference config).
+
 ```bash
 # common-lib first — every service depends on it
 cd common-lib && ./mvnw clean install -DskipTests
@@ -258,7 +271,7 @@ cd workspace-service && ./mvnw spring-boot:run &
 cd intelligence-service && ./mvnw spring-boot:run &
 
 # frontend
-cd "Lovable Frontend/project-companion" && npm install && npm run dev
+cd frontend && npm install && npm run dev
 ```
 
 For a full Kubernetes deployment, apply manifests in order — `k8s/infra/` → `k8s/stateful/` → `k8s/services/` → `k8s/proxy/`.
@@ -266,6 +279,10 @@ For a full Kubernetes deployment, apply manifests in order — `k8s/infra/` → 
 **CI/CD:** every push to `master` that touches a service's folder builds and pushes a Docker image for just that service via **Jib**, authenticates to GCP with **no stored keys at all** (GitHub OIDC exchanged for short-lived credentials via Workload Identity Federation), and rolls it out with `kubectl set image` — waiting on the rollout to confirm zero downtime before finishing.
 
 ---
+
+## Connect
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Priyanshu%20Raj-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/priyanshuraj354/)
 
 <div align="center">
 <sub>Built by Priyanshu Raj</sub>
