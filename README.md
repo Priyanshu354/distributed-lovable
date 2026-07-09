@@ -7,7 +7,7 @@
 Built the way Lovable / bolt.new work — but built by me, from the LLM orchestration down to the Kubernetes pod that runs your generated app.
 
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](.)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3-brightgreen?logo=springboot)](.)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-brightgreen?logo=springboot)](.)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-LLM%20Orchestration-blue)](.)
 [![Kafka](https://img.shields.io/badge/Apache%20Kafka-Choreography%20Saga-black?logo=apachekafka)](.)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-GKE-326CE5?logo=kubernetes)](.)
