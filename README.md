@@ -7,7 +7,7 @@
 Built the way Lovable / bolt.new work — but built by me, from the LLM orchestration down to the Kubernetes pod that runs your generated app.
 
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](.)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3-brightgreen?logo=springboot)](.)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-brightgreen?logo=springboot)](.)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-LLM%20Orchestration-blue)](.)
 [![Kafka](https://img.shields.io/badge/Apache%20Kafka-Choreography%20Saga-black?logo=apachekafka)](.)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-GKE-326CE5?logo=kubernetes)](.)
@@ -127,7 +127,25 @@ flowchart TB
 
 ---
 
-## The part I actually want to talk about #1: saving AI-generated files without losing or duplicating them
+## The part I actually want to talk about #1: how one prompt becomes a whole application
+
+This is honestly the part I find most interesting to explain, because it's not "call the LLM and stream back whatever it says." Raw LLM output is just words — turning that into real, saveable, individually-trackable files meant I had to design an actual protocol for the model to follow, not just write a clever prompt.
+
+I made the model speak in a strict format, using three tags — `<tool>` to request file reads, `<message>` to talk to the user, and `<file path="...">` to output a complete file — and I make it follow the same sequence every single time: **Analyze** first, meaning read whatever files it actually needs before touching anything. **Plan** second, meaning tell me in one message exactly which files it's about to create or modify. **Execute** third, meaning emit those files, one `<file>` tag per path. Then **Stop** — print one short final message and it's done. There's also a rule I added the hard way: a file path can only be emitted once per response. No "let me also tweak that" halfway through, because that's exactly what led to the model second-guessing itself and streaming out a corrupted second version of a file it had just finished writing.
+
+I also didn't want to dump the whole codebase into every single prompt. So I gave the model a real tool it can call — `read_files`, defined with Spring AI's `@Tool` annotation and a `@ToolParam` that takes a list of relative paths, like `["src/App.tsx", "src/hooks/useSnake.ts"]`. When the model calls it, that list goes out through `WorkspaceClient` — a Feign client — as one `getFileContent` call per path against Workspace Service, and each result comes back wrapped as `--- START OF FILE: path ---` / content / `--- END OF FILE ---` so the model can cleanly tell where one file ends and the next begins inside its own context. The tool's description also explicitly restricts it to paths that exist in the injected `FILE_TREE` — so the model isn't just free to ask for anything, only what it's already been told is actually there. The model decides for itself which of those files it needs before editing, instead of me shipping every file in the project on every message. That's not just a nice-to-have — a prompt that ships the entire project's source on every single turn scales token cost and latency linearly with project size, and it'll blow the context window outright once a project has 30–40 files in it. Letting the model pull only what it needs keeps every generation's cost roughly constant regardless of how big the project has grown.
+
+The worst bug I hit building this whole service was the tool-call loop just not terminating. Sometimes a request would completely hang — the stream would stay open, nothing would ever finish, and the user would just sit there staring at a spinner. What was actually happening was that the model had no hard boundary telling it when to stop calling `read_files` and just commit to an answer. It would sometimes ask for a file it already had, or ask for a path that didn't exist in the project at all — basically hallucinate a file — and because nothing forced it out of that reading phase, it could keep issuing tool calls indefinitely instead of ever reaching the plan/execute/stop part of the flow. This wasn't something I could fix with a try-catch, because the loop was happening inside the model's own reasoning, one call at a time, and every individual call looked "valid" on its own. The actual fix was tightening the contract, not the code — I locked `read_files` down so it only accepts paths that actually exist in the file tree I inject, added a rule that a file already read can never be re-requested in the same turn, and made **Stop** an explicit, numbered, non-optional step instead of leaving termination as something the model was implicitly supposed to figure out on its own.
+
+I also don't make the model guess what already exists in a project. I built a `FileTreeContextAdvisor` that hooks into Spring AI's advisor chain and, on every single request, quietly injects the project's current file tree as an extra system message before my prompt even reaches the model. So if I ask it to add a dark mode toggle, it already knows there's a `Header.tsx` and a `useTheme` hook sitting there — it's not guessing, and it's not going to stomp on something it doesn't know about.
+
+Once the model finishes, I still have to turn that streamed text into something I can actually store and act on, because LLM output isn't JSON — it's just tagged text. So I regex-parse the full response against those same `<message>`, `<file>`, and `<tool>` tags and turn it into a list of `ChatEvent` rows — `MESSAGE`, `FILE_EDIT`, `TOOL_LOG` — each with its own status. That's what lets the UI show something like "editing `useSnake.ts`" as its own line, and it's also exactly what feeds into the saga I explain below — every `FILE_EDIT` event becomes one Kafka message, not one giant blob of text I'd have to somehow split apart after the fact.
+
+And the system prompt isn't just "write code" — it has an actual design opinion baked into it. I explicitly told the model to avoid the generic "AI slop" look — no default Inter font, no purple gradient on white, no cookie-cutter layouts — and pushed it toward semantic Tailwind classes, real typography choices, and actual motion. It's a small thing, but it's the difference between something that looks like every other AI demo and something that looks like it was actually designed.
+
+---
+
+## The part I actually want to talk about #2: saving AI-generated files without losing or duplicating them
 
 This is the flow I'm proudest of, because it's the one that forced me to actually think about distributed systems correctly instead of just wiring services together and hoping.
 
@@ -146,7 +164,7 @@ That last point mattered a lot to me — it would've been easy to just show "Fil
 
 ---
 
-## The part I actually want to talk about #2: live preview, without a cold start every time
+## The part I actually want to talk about #3: live preview, without a cold start every time
 
 The other piece I spent real time on is how "Show Preview" goes from a click to a running app in a couple of seconds instead of thirty.
 
