@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ Forgeboard
+# ⚡ distributed-app-gen-platform
 
 **An AI SaaS platform where you type a prompt like _"build a snake game"_ — and get a real, running app back, with a live preview, in seconds.**
 
