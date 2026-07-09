@@ -13,7 +13,6 @@ Built the way Lovable / bolt.new work — but built by me, from the LLM orchestr
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-GKE-326CE5?logo=kubernetes)](.)
 [![React](https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react)](.)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](.)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 📺 **Demo video coming soon** — a full walkthrough is on the way, link will be added here once it's live.
 
