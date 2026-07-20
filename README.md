@@ -14,7 +14,7 @@ Built the way Lovable / bolt.new work — but built by me, from the LLM orchestr
 [![React](https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react)](.)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](.)
 
-📺 **Demo video coming soon** — a full walkthrough is on the way, link will be added here once it's live.
+[![Watch Demo](https://img.shields.io/badge/🎥-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/Cucga1ZEiAM)
 
 </div>
 
